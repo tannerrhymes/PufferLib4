@@ -47,31 +47,21 @@ typedef struct {
     // Add AUV state here.
 } AUVSDF;
 
-inline float sdf_ocean_surface(AUVSDF* env){
-float x = env->DroneState.pos.x;
-float y = env->DroneState.pos.y;
-float z = env->DroneState.pos.z;
+inline float sdf_ocean_surface(float y){
 return y;
 }
 
-inline float sdf_ocean_floor(AUVSDF* env){
-float x = env->DroneState.pos.x;
-float y = env->DroneState.pos.y;
-float z = env->DroneState.pos.z;
+inline float sdf_ocean_floor(float y){
 return ocean_floor_base - y;
 }
 
-inline float map_ocean(AUVSDF* env){
-    float x = env->DroneState.pos.x;
-    float y = env->DroneState.pos.y;
-    float z = env->DroneState.pos.z;
-
+inline float map_ocean(float x, float y, float z){
     // 1. Call your inline primitives
-    float dist_surface = sdf_ocean_surface(env);
-    float dist_floor = sdf_ocean_floor(env);
+    float dist_surface = sdf_ocean_surface(y);
+    float dist_floor = sdf_ocean_floor(y);
     
     // 2. Combine them. 
-    // fmaxf guarantees the agent is bounded by whichever surface is closest.
+    // fmaxf combines signed SDFs for the bounded ocean volume.
     return fmaxf(dist_surface, dist_floor);
 }
 
@@ -93,27 +83,27 @@ inline Vec3 get_drone_unit_vector(AUVSDF* env){
 }
 
 inline float sphere_marching_distance(AUVSDF* env, Vec3* unit_vec){
+    float total_dist = 0.0f;
 
-    float dist_jumped = map_ocean(env);
+    float x = env->DroneState.pos.x;
+    float y = env->DroneState.pos.y;
+    float z = env->DroneState.pos.z;
 
-    float next_jump_x = dist_jumped * unit_vec->x;
-    float next_jump_y = dist_jumped * unit_vec->y;
-    float next_jump_z = dist_jumped * unit_vec->z;
+    for (int i = 0; i < max_jumps; i++) {
+        float step_dist = map_ocean(x, y, z);
+        if (fabsf(step_dist) < min_dist) {
+            break;
+        }
 
-    float x_new = env->DroneState.pos.x + next_jump_x;
-    float y_new = env->DroneState.pos.y + next_jump_y;
-    float z_new = env->DroneState.pos.z + next_jump_z;
+        float step_size = fabsf(step_dist);
+        total_dist += step_size;
 
-    for (int i = 0; i < max_jumps; i++){
-        
-        float next_jump_x = dist_jumped * unit_vec->x;
-        float next_jump_y = dist_jumped * unit_vec->y;
-        float next_jump_z = dist_jumped * unit_vec->z;
-
-
+        x += step_size * unit_vec->x;
+        y += step_size * unit_vec->y;
+        z += step_size * unit_vec->z;
     }
 
-
+    return total_dist;
 }
 
 //Now we need to write the sphere marching math here
@@ -149,11 +139,30 @@ void render(AUVSDF* env){
 
             //First we calcualte then length and then we divide by the length to normalize
             float length = sqrtf(raw_dir.x * raw_dir.x + raw_dir.y * raw_dir.y + raw_dir.z * raw_dir.z);
-            Vector3 ray_dir = {
+            Vec3 ray_dir = {
             raw_dir.x / length,
             raw_dir.y / length,
             raw_dir.z / length};
 
+            float distance = sphere_marching_distance(env, &ray_dir);
+
+            // 1. Calculate Intensity (1.0 = right in your face, 0.0 = lost in the dark)            
+            float intensity =1.0f - (distance / max_dist_view);
+            // Clamp it so math errors don't wrap our colors around
+            if (intensity < 0.0f) intensity = 0.0f; 
+            if (intensity > 1.0f) intensity = 1.0f;
+            // 2. Create the Underwater Color
+            // Multiply our base RGB values by the intensity
+            unsigned char r = (unsigned char)(intensity * 0);   // No red underwater
+            unsigned char g = (unsigned char)(intensity * 150); // Some green
+            unsigned char b = (unsigned char)(intensity * 200); // Lots of blue
+
+            Color pixel_color = {r, g, b, 255};
+            // 3. Draw it to the screen!
+            DrawPixel(pixel_x, pixel_y, pixel_color);
         }
     }
+
+    // REQUIRED BY RAYLIB: Swap the buffers and actually display the image
+    EndDrawing();
 }

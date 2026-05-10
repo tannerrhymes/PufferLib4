@@ -9,6 +9,8 @@ const float ocean_floor_base = -100.0;
 const int width = 1920;
 const int height = 1080;
 const float focal_length = 1.0f; // Roughly 90-degree FOV
+const float max_dist_view = 200.0;
 
 //Sphere marching constants
 const int max_jumps = 10;
+const float min_dist = 0.01;
