@@ -54,14 +54,14 @@ void add_log(Squared* env) {
 // Required function
 void c_reset(Squared* env) {
     int tiles = env->size*env->size;
-    memset(env->observations, 0, tiles*sizeof(unsigned char));
+    memset(env->observations, 0, tiles*sizeof(unsigned char)); //similar to np.zeros
     env->observations[tiles/2] = AGENT;
     env->r = env->size/2;
     env->c = env->size/2;
     env->tick = 0;
     int target_idx = 0; // Deterministic for testing
     do {
-        target_idx = rand_r(&env->rng) % tiles;
+        target_idx = rand_r(&env->rng) % tiles; //this is how we ramdomize starting position
     } while (target_idx == tiles/2);
     env->observations[target_idx] = TARGET;
 }

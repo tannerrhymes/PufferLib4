@@ -13,9 +13,9 @@ const unsigned char AGENT = 1;
 const unsigned char OBSTACLE = 2;
 
 #define NUM_OBSTACLES 15
-#define NUM_OBSERVATIONS 121
+#define NUM_OBSERVATIONS ((NUM_OBSTACLES + 1) * 3)
 #define GRID_RES 84
-#define MAX_TICKS 2000
+#define MAX_TICKS 500
 #define MAX_RADIUS 3
 
 typedef struct {
@@ -54,7 +54,7 @@ typedef struct {
 
 void add_log(AUVBasic* env) {
     env->log.perf += (env->rewards[0] > 0) ? 1 : 0;
-    env->log.score += env->rewards[0];
+    env->log.score += env->episode_return;
     env->log.episode_length += env->tick;
     env->log.episode_return += env->episode_return;
     env->log.n++;
@@ -89,10 +89,12 @@ void c_reset(AUVBasic* env) {
             }
         }
     }
-    env->observations[0] = env->auv_y / (float)GRID_RES;
+    env->observations[0] = env->auv_x / (float)GRID_RES;
+    env->observations[1] = env->auv_y / (float)GRID_RES;
+    env->observations[2] = env->auv_r / (float)MAX_RADIUS;
 
     for (int i = 0; i < NUM_OBSTACLES; i++){
-        int obs_idx_start = 1+ i * 3;
+        int obs_idx_start = 3 + i * 3;
         
         int idx_obstacle_x = obs_idx_start;
         int idx_obstacle_y = obs_idx_start + 1;
@@ -165,10 +167,12 @@ void c_step(AUVBasic* env) {
     env->episode_return += env->rewards[0];
 
     int max_radius = MAX_RADIUS;
-    env->observations[0] = env->auv_y / (float)GRID_RES;
+    env->observations[0] = env->auv_x / (float)GRID_RES;
+    env->observations[1] = env->auv_y / (float)GRID_RES;
+    env->observations[2] = env->auv_r / (float)MAX_RADIUS;
 
     for (int i = 0; i < NUM_OBSTACLES; i++){
-        int obs_idx_start = 1+ i * 3;
+        int obs_idx_start = 3 + i * 3;
         
         int idx_obstacle_x = obs_idx_start;
         int idx_obstacle_y = obs_idx_start + 1;
